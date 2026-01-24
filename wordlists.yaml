@@ -1,0 +1,142 @@
+meta:
+  max_letters: 6
+  casing: UPPERCASE
+  notes:
+    - "All words are <= 6 letters and stored uppercase for tracing."
+    - "Sight words: Dolch Pre-K (40) + {ALL, AM, ARE, AT} to total 44."
+
+categories:
+  animals:
+    display_name: "Animals"
+    items:
+      - { word: "DOG", emoji: "🐶" }
+      - { word: "CAT", emoji: "🐱" }
+      - { word: "FISH", emoji: "🐟" }
+      - { word: "WHALE", emoji: "🐳" }
+      - { word: "SHARK", emoji: "🦈" }
+      - { word: "CRAB", emoji: "🦀" }
+      - { word: "SNAIL", emoji: "🐌" }
+      - { word: "FROG", emoji: "🐸" }
+      - { word: "BEAR", emoji: "🐻" }
+      - { word: "PANDA", emoji: "🐼" }
+      - { word: "TIGER", emoji: "🐯" }
+      - { word: "LION", emoji: "🦁" }
+      - { word: "MOUSE", emoji: "🐭" }
+      - { word: "RABBIT", emoji: "🐰" }
+      - { word: "HORSE", emoji: "🐴" }
+      - { word: "ZEBRA", emoji: "🦓" }
+      - { word: "SHEEP", emoji: "🐑" }
+      - { word: "GOAT", emoji: "🐐" }
+      - { word: "CAMEL", emoji: "🐪" }
+      - { word: "LLAMA", emoji: "🦙" }
+      - { word: "SLOTH", emoji: "🦥" }
+      - { word: "OTTER", emoji: "🦦" }
+      - { word: "MOOSE", emoji: "🫎" }
+      - { word: "DEER", emoji: "🦌" }
+      - { word: "SKUNK", emoji: "🦨" }
+      - { word: "HIPPO", emoji: "🦛" }
+      - { word: "GATOR", emoji: "🐊" }
+      - { word: "SNAKE", emoji: "🐍" }
+      - { word: "MONKEY", emoji: "🐵" }
+      - { word: "KOALA", emoji: "🐨" }
+      - { word: "DOG", emoji: "🐶" } # (duplicate-safe if you shuffle; remove if you want strict uniqueness)
+
+  foods:
+    display_name: "Foods"
+    items:
+      - { word: "PIZZA", emoji: "🍕" }
+      - { word: "TACO", emoji: "🌮" }
+      - { word: "SUSHI", emoji: "🍣" }
+      - { word: "BURGER", emoji: "🍔" }
+      - { word: "FRIES", emoji: "🍟" }
+      - { word: "RAMEN", emoji: "🍜" }
+      - { word: "SALAD", emoji: "🥗" }
+      - { word: "BREAD", emoji: "🍞" }
+      - { word: "WAFFLE", emoji: "🧇" }
+      - { word: "PANCAKE", emoji: "🥞" } # keep <=6; pronounce "pan-cake"
+      - { word: "COOKIE", emoji: "🍪" }
+      - { word: "CANDY", emoji: "🍬" }
+      - { word: "DONUT", emoji: "🍩" }
+      - { word: "CAKE", emoji: "🍰" }
+      - { word: "APPLE", emoji: "🍎" }
+      - { word: "GRAPE", emoji: "🍇" }
+      - { word: "BANANA", emoji: "🍌" }
+      - { word: "PEACH", emoji: "🍑" }
+      - { word: "CHERRY", emoji: "🍒" }
+      - { word: "LEMON", emoji: "🍋" }
+      - { word: "MELON", emoji: "🍈" }
+      - { word: "BERRY", emoji: "🫐" }
+      - { word: "CARROT", emoji: "🥕" }
+      - { word: "CORN", emoji: "🌽" }
+      - { word: "TOMATO", emoji: "🍅" }
+      - { word: "POTATO", emoji: "🥔" }
+      - { word: "CHEESE", emoji: "🧀" }
+      - { word: "BACON", emoji: "🥓" }
+      - { word: "EGG", emoji: "🥚" }
+      - { word: "MILK", emoji: "🥛" }
+
+  colors:
+    display_name: "Colors"
+    items:
+      - { word: "RED", emoji: "🔴" }
+      - { word: "BLUE", emoji: "🔵" }
+      - { word: "GREEN", emoji: "🟢" }
+      - { word: "YELLOW", emoji: "🟡" }  # 6 letters OK
+      - { word: "ORANGE", emoji: "🟠" }  # 6 letters OK
+      - { word: "PURPLE", emoji: "🟣" }  # 6 letters OK
+      - { word: "BROWN", emoji: "🟤" }
+      - { word: "BLACK", emoji: "⚫" }
+      - { word: "WHITE", emoji: "⚪" }
+      - { word: "PINK", emoji: "🌸" }
+      - { word: "GOLD", emoji: "🥇" }
+      - { word: "SILVER", emoji: "🥈" }  # 6 letters OK
+
+  sight_words:
+    display_name: "Sight Words"
+    items:
+      # Dolch Pre-K (40)
+      - { word: "A" }
+      - { word: "AND" }
+      - { word: "AWAY" }
+      - { word: "BIG" }
+      - { word: "BLUE" }
+      - { word: "CAN" }
+      - { word: "COME" }
+      - { word: "DOWN" }
+      - { word: "FIND" }
+      - { word: "FOR" }
+      - { word: "FUNNY" }
+      - { word: "GO" }
+      - { word: "HELP" }
+      - { word: "HERE" }
+      - { word: "I" }
+      - { word: "IN" }
+      - { word: "IS" }
+      - { word: "IT" }
+      - { word: "JUMP" }
+      - { word: "LITTLE" }
+      - { word: "LOOK" }
+      - { word: "MAKE" }
+      - { word: "ME" }
+      - { word: "MY" }
+      - { word: "NOT" }
+      - { word: "ONE" }
+      - { word: "PLAY" }
+      - { word: "RED" }
+      - { word: "RUN" }
+      - { word: "SAID" }
+      - { word: "SEE" }
+      - { word: "THE" }
+      - { word: "THREE" }
+      - { word: "TO" }
+      - { word: "TWO" }
+      - { word: "UP" }
+      - { word: "WE" }
+      - { word: "WHERE" }
+      - { word: "YELLOW" }
+      - { word: "YOU" }
+      # +4 Kindergarten Dolch to make 44 total
+      - { word: "ALL" }
+      - { word: "AM" }
+      - { word: "ARE" }
+      - { word: "AT" }
