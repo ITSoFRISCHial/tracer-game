@@ -86,7 +86,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
 
   // Convert touch to SVG coordinates
   const getPointFromTouch = useCallback(
-    (touch: Touch, svg: SVGSVGElement): Point | null => {
+    (touch: { clientX: number; clientY: number }, svg: SVGSVGElement): Point | null => {
       const rect = svg.getBoundingClientRect();
       const viewBox = svg.viewBox.baseVal;
 
