@@ -40,6 +40,7 @@ export function useCoverageTracking({
   const [currentLetterIndex, setCurrentLetterIndex] = useState(0);
   const lastSegmentRef = useRef<number>(-1);
   const pendingAdvanceRef = useRef(false);
+  const pendingLetterIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
     lastSegmentRef.current = -1;
@@ -78,16 +79,11 @@ export function useCoverageTracking({
         // Check if letter is now complete
         const coverage = letterSegments.size / NUM_SEGMENTS;
         if (coverage >= COMPLETION_THRESHOLD) {
-          // Mark letter as complete
-          setCompletedLetters((prevCompleted) => {
-            const newCompleted = [...prevCompleted];
-            newCompleted[currentLetterIndex] = true;
-            return newCompleted;
-          });
-
-          // Notify and advance to next letter
-          onLetterComplete?.(currentLetterIndex);
-          pendingAdvanceRef.current = true;
+          // Defer completion + advancement until stroke end
+          if (!pendingAdvanceRef.current) {
+            pendingAdvanceRef.current = true;
+            pendingLetterIndexRef.current = currentLetterIndex;
+          }
         }
 
         return newSegments;
@@ -100,7 +96,20 @@ export function useCoverageTracking({
     if (!pendingAdvanceRef.current) return;
 
     pendingAdvanceRef.current = false;
-    const nextIndex = currentLetterIndex + 1;
+    const completedIndex = pendingLetterIndexRef.current ?? currentLetterIndex;
+    pendingLetterIndexRef.current = null;
+
+    setCompletedLetters((prevCompleted) => {
+      const newCompleted = [...prevCompleted];
+      if (completedIndex >= 0 && completedIndex < newCompleted.length) {
+        newCompleted[completedIndex] = true;
+      }
+      return newCompleted;
+    });
+
+    onLetterComplete?.(completedIndex);
+
+    const nextIndex = completedIndex + 1;
     if (nextIndex >= wordLength) {
       // Word is complete!
       onWordComplete?.();
@@ -116,6 +125,7 @@ export function useCoverageTracking({
     setCurrentLetterIndex(0);
     lastSegmentRef.current = -1;
     pendingAdvanceRef.current = false;
+    pendingLetterIndexRef.current = null;
   }, [wordLength]);
 
   // Reset tracking for word length changes
@@ -126,6 +136,7 @@ export function useCoverageTracking({
       setCurrentLetterIndex(0);
       lastSegmentRef.current = -1;
       pendingAdvanceRef.current = false;
+      pendingLetterIndexRef.current = null;
     },
     []
   );
