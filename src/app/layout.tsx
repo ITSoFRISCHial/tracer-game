@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Open_Sans } from 'next/font/google';
 import './globals.css';
 
@@ -11,6 +11,25 @@ const openSans = Open_Sans({
 export const metadata: Metadata = {
   title: 'Trace the Word',
   description: 'A fun letter tracing game for kids',
+  // iOS PWA settings
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Trace the Word',
+  },
+  // Prevent phone number detection
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+// Viewport settings - prevent zoom on iOS
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -20,6 +39,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* iOS-specific meta tags */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
+      </head>
       <body className={`${openSans.variable} font-sans antialiased`}>
         {children}
       </body>

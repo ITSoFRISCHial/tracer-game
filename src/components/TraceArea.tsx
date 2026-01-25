@@ -10,6 +10,7 @@ interface TraceAreaProps {
   word: string;
   currentLetterIndex: number;  // Which letter is active (0-indexed)
   completedLetters: boolean[]; // Array of completion status for each letter
+  corridorWidth?: number;      // Width of the hit-testing corridor (default 42)
   onClear?: () => void;        // Called when clear button is pressed
   onSegmentHit?: (segmentIndex: number) => void; // Called when a segment is hit
   onDrawOutsideCorridor?: () => void; // Called when drawing outside corridor
@@ -18,7 +19,7 @@ interface TraceAreaProps {
 
 const LETTER_SPACING = 15; // Space between letters
 const PADDING = 20;        // Padding around the word
-const CORRIDOR_WIDTH = 42; // Width of the hit-testing corridor
+const DEFAULT_CORRIDOR_WIDTH = 42; // Default width of the hit-testing corridor
 
 /**
  * Dev Notes: Trace Area with Corridor Hit-Testing
@@ -33,6 +34,7 @@ export default function TraceArea({
   word,
   currentLetterIndex,
   completedLetters,
+  corridorWidth = DEFAULT_CORRIDOR_WIDTH,
   onClear,
   onSegmentHit,
   onDrawOutsideCorridor,
@@ -42,7 +44,7 @@ export default function TraceArea({
 
   // Get letter path data for hit-testing
   const { letterPaths, isReady, checkPointInLetter, corridorRadius } =
-    useLetterPaths({ word, corridorWidth: CORRIDOR_WIDTH });
+    useLetterPaths({ word, corridorWidth });
 
   // Point filter for corridor hit-testing
   // Defined inline (no useCallback) to ensure we always have fresh values

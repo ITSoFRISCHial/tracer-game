@@ -35,3 +35,32 @@ svg {
 html, body {
   overscroll-behavior: none;
 }
+
+/* Safe area support for notched devices (iPhone X+, newer iPads) */
+.safe-area-inset {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Prevent tap highlight on iOS */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth touch scrolling where needed */
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Fix for iOS button styling */
+button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Prevent context menu on long press */
+.no-context-menu {
+  -webkit-touch-callout: none;
+}

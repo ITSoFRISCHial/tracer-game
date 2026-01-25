@@ -7,6 +7,7 @@ import TraceArea from './TraceArea';
 import { useCoverageTracking } from '@/hooks/useCoverageTracking';
 import { useWordQueue } from '@/hooks/useWordQueue';
 import { useSpeech } from '@/hooks/useSpeech';
+import { useSettings } from '@/hooks/useSettings';
 
 interface GameScreenProps {
   categoryId: CategoryId;
@@ -16,13 +17,16 @@ interface GameScreenProps {
 export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
   const category = categories[categoryId];
 
+  // Settings from context
+  const { settings, addLetterPoint, addWordPoint, incrementWordsCompleted } = useSettings();
+
   // Word queue for random word selection
   const { currentWord, nextWord, wordsCompleted } = useWordQueue({
     words: category.items,
     maxLetters: 6,
   });
 
-  // Score tracking
+  // Session score tracking (also updates persisted scores)
   const [score, setScore] = useState<Score>({ letterPoints: 0, wordPoints: 0 });
 
   // Showing celebration state
@@ -34,8 +38,8 @@ export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
   // Key to force TraceArea remount on word change
   const [traceKey, setTraceKey] = useState(0);
 
-  // Speech synthesis
-  const { speakWord, speakLockedLetter, speakIncomplete, speakCelebration } = useSpeech(true);
+  // Speech synthesis (uses settings.speechEnabled)
+  const { speakWord, speakLockedLetter, speakIncomplete, speakCelebration } = useSpeech(settings.speechEnabled);
 
   // Ref to store the current word for callbacks
   const currentWordRef = useRef(currentWord);
@@ -46,7 +50,7 @@ export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
   // Throttle ref for locked letter speech (prevent spam)
   const lastLockedSpeechRef = useRef(0);
 
-  // Coverage tracking hook
+  // Coverage tracking hook (uses settings.completionThreshold)
   const {
     currentLetterIndex,
     completedLetters,
@@ -58,13 +62,17 @@ export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
     isWordComplete,
   } = useCoverageTracking({
     wordLength: currentWord?.word.length || 0,
+    completionThreshold: settings.completionThreshold,
     onLetterComplete: () => {
-      // Award letter point
+      // Award letter point (session + persisted)
       setScore((prev) => ({ ...prev, letterPoints: prev.letterPoints + 1 }));
+      addLetterPoint();
     },
     onWordComplete: () => {
-      // Award word point
+      // Award word point (session + persisted)
       setScore((prev) => ({ ...prev, wordPoints: prev.wordPoints + 1 }));
+      addWordPoint();
+      incrementWordsCompleted();
       // Show celebration
       setShowCelebration(true);
       // Speak celebration
@@ -243,6 +251,7 @@ export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
           word={currentWord.word}
           currentLetterIndex={currentLetterIndex}
           completedLetters={completedLetters}
+          corridorWidth={settings.corridorWidth}
           onSegmentHit={handleSegmentHit}
           onDrawOutsideCorridor={handleDrawOutsideCorridor}
           onClear={handleClear}

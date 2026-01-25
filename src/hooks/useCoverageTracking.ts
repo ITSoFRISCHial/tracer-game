@@ -3,10 +3,11 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 
 const NUM_SEGMENTS = 120;
-const COMPLETION_THRESHOLD = 0.95; // 95% coverage to complete
+const DEFAULT_COMPLETION_THRESHOLD = 0.95; // 95% coverage to complete
 
 interface UseCoverageTrackingOptions {
   wordLength: number;
+  completionThreshold?: number; // 0.5 to 1.0, default 0.95
   onLetterComplete?: (letterIndex: number) => void;
   onWordComplete?: () => void;
 }
@@ -16,12 +17,13 @@ interface UseCoverageTrackingOptions {
  *
  * Each letter's path is discretized into NUM_SEGMENTS points.
  * As the user traces, we mark segments as "covered" when they draw near them.
- * When coverage reaches COMPLETION_THRESHOLD (95%), the letter is complete.
+ * When coverage reaches completionThreshold, the letter is complete.
  *
  * This is "easy mode" - very forgiving for young children.
  */
 export function useCoverageTracking({
   wordLength,
+  completionThreshold = DEFAULT_COMPLETION_THRESHOLD,
   onLetterComplete,
   onWordComplete,
 }: UseCoverageTrackingOptions) {
@@ -78,7 +80,7 @@ export function useCoverageTracking({
 
         // Check if letter is now complete
         const coverage = letterSegments.size / NUM_SEGMENTS;
-        if (coverage >= COMPLETION_THRESHOLD) {
+        if (coverage >= completionThreshold) {
           // Defer completion + advancement until stroke end
           if (!pendingAdvanceRef.current) {
             pendingAdvanceRef.current = true;
@@ -89,7 +91,7 @@ export function useCoverageTracking({
         return newSegments;
       });
     },
-    [currentLetterIndex, wordLength, completedLetters, onLetterComplete, onWordComplete]
+    [currentLetterIndex, wordLength, completedLetters, completionThreshold, onLetterComplete, onWordComplete]
   );
 
   const finalizePendingAdvance = useCallback(() => {
@@ -155,6 +157,6 @@ export function useCoverageTracking({
     resetTracking,
     resetForNewWord,
     isWordComplete,
-    completionThreshold: COMPLETION_THRESHOLD,
+    completionThreshold,
   };
 }
