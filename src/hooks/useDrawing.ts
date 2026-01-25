@@ -70,45 +70,17 @@ export function useDrawing(options: UseDrawingOptions = {}) {
   onStrokeStartRef.current = onStrokeStart;
   onStrokeEndRef.current = onStrokeEnd;
 
-  // Convert pointer event to SVG coordinates
-  const getPointFromEvent = useCallback(
-    (e: PointerEvent<SVGSVGElement>, svg: SVGSVGElement): Point | null => {
-      const rect = svg.getBoundingClientRect();
-      const viewBox = svg.viewBox.baseVal;
+  // Convert client coordinates to SVG coordinates using screen CTM
+  const getPointFromClient = useCallback(
+    (clientX: number, clientY: number, svg: SVGSVGElement): Point | null => {
+      const ctm = svg.getScreenCTM();
+      if (!ctm) return null;
 
-      if (!viewBox || viewBox.width === 0 || viewBox.height === 0) {
-        return null;
-      }
-
-      // Convert screen coords to SVG viewBox coords
-      const scaleX = viewBox.width / rect.width;
-      const scaleY = viewBox.height / rect.height;
-
-      const x = (e.clientX - rect.left) * scaleX + viewBox.x;
-      const y = (e.clientY - rect.top) * scaleY + viewBox.y;
-
-      return { x, y };
-    },
-    []
-  );
-
-  // Convert touch to SVG coordinates
-  const getPointFromTouch = useCallback(
-    (touch: { clientX: number; clientY: number }, svg: SVGSVGElement): Point | null => {
-      const rect = svg.getBoundingClientRect();
-      const viewBox = svg.viewBox.baseVal;
-
-      if (!viewBox || viewBox.width === 0 || viewBox.height === 0) {
-        return null;
-      }
-
-      const scaleX = viewBox.width / rect.width;
-      const scaleY = viewBox.height / rect.height;
-
-      const x = (touch.clientX - rect.left) * scaleX + viewBox.x;
-      const y = (touch.clientY - rect.top) * scaleY + viewBox.y;
-
-      return { x, y };
+      const point = svg.createSVGPoint();
+      point.x = clientX;
+      point.y = clientY;
+      const svgPoint = point.matrixTransform(ctm.inverse());
+      return { x: svgPoint.x, y: svgPoint.y };
     },
     []
   );
@@ -145,7 +117,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
       const svg = e.currentTarget;
       svg.setPointerCapture(e.pointerId);
 
-      const point = getPointFromEvent(e, svg);
+      const point = getPointFromClient(e.clientX, e.clientY, svg);
       if (point) {
         currentStrokeRef.current = [];
         lastPointTimeRef.current = Date.now();
@@ -156,7 +128,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
         setCurrentStroke({ points: [...currentStrokeRef.current] });
       }
     },
-    [getPointFromEvent, processPoint]
+    [getPointFromClient, processPoint]
   );
 
   const handlePointerMove = useCallback(
@@ -174,14 +146,14 @@ export function useDrawing(options: UseDrawingOptions = {}) {
       }
       lastPointTimeRef.current = now;
 
-      const point = getPointFromEvent(e, e.currentTarget);
+      const point = getPointFromClient(e.clientX, e.clientY, e.currentTarget);
       if (point) {
         processPoint(point);
         // Update current stroke state for rendering
         setCurrentStroke({ points: [...currentStrokeRef.current] });
       }
     },
-    [isDrawing, throttleMs, getPointFromEvent, processPoint]
+    [isDrawing, throttleMs, getPointFromClient, processPoint]
   );
 
   const handlePointerUp = useCallback(
@@ -255,13 +227,13 @@ export function useDrawing(options: UseDrawingOptions = {}) {
       setIsDrawing(true);
       onStrokeStartRef.current?.();
 
-      const point = getPointFromTouch(touch, svg);
+      const point = getPointFromClient(touch.clientX, touch.clientY, svg);
       if (point) {
         processPoint(point);
         setCurrentStroke({ points: [...currentStrokeRef.current] });
       }
     },
-    [getPointFromTouch, processPoint]
+    [getPointFromClient, processPoint]
   );
 
   const handleTouchMove = useCallback(
@@ -281,13 +253,13 @@ export function useDrawing(options: UseDrawingOptions = {}) {
       }
       lastPointTimeRef.current = now;
 
-      const point = getPointFromTouch(touch, e.currentTarget);
+      const point = getPointFromClient(touch.clientX, touch.clientY, e.currentTarget);
       if (point) {
         processPoint(point);
         setCurrentStroke({ points: [...currentStrokeRef.current] });
       }
     },
-    [getPointFromTouch, isDrawing, processPoint, throttleMs]
+    [getPointFromClient, isDrawing, processPoint, throttleMs]
   );
 
   const finishTouchStroke = useCallback(() => {
