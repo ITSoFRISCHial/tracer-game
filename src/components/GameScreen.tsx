@@ -4,6 +4,7 @@ import { useCallback, useState, useEffect, useRef } from 'react';
 import { CategoryId, Score } from '@/types';
 import { categories } from '@/data/categories';
 import TraceArea from './TraceArea';
+import EmojiExplosion from './EmojiExplosion';
 import { useCoverageTracking } from '@/hooks/useCoverageTracking';
 import { useWordQueue } from '@/hooks/useWordQueue';
 import { useSpeech } from '@/hooks/useSpeech';
@@ -79,11 +80,6 @@ export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
       if (currentWordRef.current) {
         speakCelebration(currentWordRef.current.word);
       }
-      // Move to next word after delay
-      setTimeout(() => {
-        setShowCelebration(false);
-        nextWord();
-      }, 900);
     },
   });
 
@@ -167,11 +163,14 @@ export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
     <div className="flex-1 flex flex-col no-select h-full overflow-hidden">
       {/* Celebration overlay */}
       {showCelebration && (
-        <div className="absolute inset-0 flex items-center justify-center bg-green-500/20 z-50 pointer-events-none">
-          <div className="text-6xl animate-bounce">
-            {currentWord.emoji || '🎉'}
-          </div>
-        </div>
+        <EmojiExplosion
+          emoji={currentWord.emoji}
+          duration={3000}
+          onComplete={() => {
+            setShowCelebration(false);
+            nextWord();
+          }}
+        />
       )}
 
       {/* Red flash overlay for incomplete check */}
