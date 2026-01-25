@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, PointerEvent } from 'react';
+import { useState, useCallback, useRef, PointerEvent, TouchEvent } from 'react';
 
 export interface Point {
   x: number;
@@ -48,6 +48,8 @@ export function useDrawing(options: UseDrawingOptions = {}) {
 
   const currentStrokeRef = useRef<Point[]>([]);
   const lastPointTimeRef = useRef<number>(0);
+  const activeTouchIdRef = useRef<number | null>(null);
+  const usingTouchRef = useRef(false);
 
   // Use refs to always access the latest callbacks (avoids stale closures)
   // Update refs synchronously during render for immediate access
@@ -82,6 +84,27 @@ export function useDrawing(options: UseDrawingOptions = {}) {
     []
   );
 
+  // Convert touch to SVG coordinates
+  const getPointFromTouch = useCallback(
+    (touch: Touch, svg: SVGSVGElement): Point | null => {
+      const rect = svg.getBoundingClientRect();
+      const viewBox = svg.viewBox.baseVal;
+
+      if (!viewBox || viewBox.width === 0 || viewBox.height === 0) {
+        return null;
+      }
+
+      const scaleX = viewBox.width / rect.width;
+      const scaleY = viewBox.height / rect.height;
+
+      const x = (touch.clientX - rect.left) * scaleX + viewBox.x;
+      const y = (touch.clientY - rect.top) * scaleY + viewBox.y;
+
+      return { x, y };
+    },
+    []
+  );
+
   // Process a point through the filter (uses refs to avoid stale closures)
   const processPoint = useCallback(
     (point: Point): boolean => {
@@ -107,6 +130,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
 
   const handlePointerDown = useCallback(
     (e: PointerEvent<SVGSVGElement>) => {
+      if (usingTouchRef.current) return;
       // Prevent default to stop iOS scroll/zoom behaviors
       e.preventDefault();
 
@@ -128,6 +152,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
 
   const handlePointerMove = useCallback(
     (e: PointerEvent<SVGSVGElement>) => {
+      if (usingTouchRef.current) return;
       // Always prevent default on move to ensure smooth drawing on iOS
       e.preventDefault();
 
@@ -152,6 +177,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
 
   const handlePointerUp = useCallback(
     (e: PointerEvent<SVGSVGElement>) => {
+      if (usingTouchRef.current) return;
       e.preventDefault();
 
       if (!isDrawing) return;
@@ -187,6 +213,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
   // Cancel handler to handle interrupted touches on iOS
   const handlePointerCancel = useCallback(
     (e: PointerEvent<SVGSVGElement>) => {
+      if (usingTouchRef.current) return;
       if (isDrawing) {
         // Save any progress made
         if (currentStrokeRef.current.length > 0) {
@@ -201,10 +228,101 @@ export function useDrawing(options: UseDrawingOptions = {}) {
     [isDrawing]
   );
 
+  const handleTouchStart = useCallback(
+    (e: TouchEvent<SVGSVGElement>) => {
+      e.preventDefault();
+
+      const touch = e.changedTouches[0];
+      if (!touch) return;
+
+      const svg = e.currentTarget;
+      usingTouchRef.current = true;
+      activeTouchIdRef.current = touch.identifier;
+
+      currentStrokeRef.current = [];
+      lastPointTimeRef.current = Date.now();
+      setIsDrawing(true);
+
+      const point = getPointFromTouch(touch, svg);
+      if (point) {
+        processPoint(point);
+        setCurrentStroke({ points: [...currentStrokeRef.current] });
+      }
+    },
+    [getPointFromTouch, processPoint]
+  );
+
+  const handleTouchMove = useCallback(
+    (e: TouchEvent<SVGSVGElement>) => {
+      if (!usingTouchRef.current || !isDrawing) return;
+      e.preventDefault();
+
+      const activeId = activeTouchIdRef.current;
+      if (activeId === null) return;
+
+      const touch = Array.from(e.touches).find((t) => t.identifier === activeId);
+      if (!touch) return;
+
+      const now = Date.now();
+      if (now - lastPointTimeRef.current < throttleMs) {
+        return;
+      }
+      lastPointTimeRef.current = now;
+
+      const point = getPointFromTouch(touch, e.currentTarget);
+      if (point) {
+        processPoint(point);
+        setCurrentStroke({ points: [...currentStrokeRef.current] });
+      }
+    },
+    [getPointFromTouch, isDrawing, processPoint, throttleMs]
+  );
+
+  const finishTouchStroke = useCallback(() => {
+    if (currentStrokeRef.current.length > 0) {
+      const finalStroke = { points: [...currentStrokeRef.current] };
+      setStrokes((prev) => [...prev, finalStroke]);
+    }
+    currentStrokeRef.current = [];
+    setCurrentStroke(null);
+    setIsDrawing(false);
+    activeTouchIdRef.current = null;
+    usingTouchRef.current = false;
+  }, []);
+
+  const handleTouchEnd = useCallback(
+    (e: TouchEvent<SVGSVGElement>) => {
+      e.preventDefault();
+      if (!isDrawing) return;
+
+      const activeId = activeTouchIdRef.current;
+      if (activeId === null) return;
+
+      const ended = Array.from(e.changedTouches).some(
+        (t) => t.identifier === activeId
+      );
+      if (ended) {
+        finishTouchStroke();
+      }
+    },
+    [finishTouchStroke, isDrawing]
+  );
+
+  const handleTouchCancel = useCallback(
+    (e: TouchEvent<SVGSVGElement>) => {
+      e.preventDefault();
+      if (!isDrawing) return;
+      finishTouchStroke();
+    },
+    [finishTouchStroke, isDrawing]
+  );
+
   const clearStrokes = useCallback(() => {
     setStrokes([]);
     setCurrentStroke(null);
     currentStrokeRef.current = [];
+    activeTouchIdRef.current = null;
+    usingTouchRef.current = false;
   }, []);
 
   return {
@@ -217,6 +335,10 @@ export function useDrawing(options: UseDrawingOptions = {}) {
       onPointerUp: handlePointerUp,
       onPointerLeave: handlePointerLeave,
       onPointerCancel: handlePointerCancel,
+      onTouchStart: handleTouchStart,
+      onTouchMove: handleTouchMove,
+      onTouchEnd: handleTouchEnd,
+      onTouchCancel: handleTouchCancel,
     },
     clearStrokes,
   };

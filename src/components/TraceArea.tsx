@@ -140,8 +140,6 @@ export default function TraceArea({
           className="w-full h-full max-h-full touch-none"
           preserveAspectRatio="xMidYMid meet"
           style={{ touchAction: 'none', cursor: 'crosshair', WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
-          onTouchStart={(e) => e.preventDefault()}
-          onTouchMove={(e) => e.preventDefault()}
           {...handlers}
         >
           {/* Background */}
