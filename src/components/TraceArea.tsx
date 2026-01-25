@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useRef } from 'react';
 import LetterGlyph, { GLYPH_HEIGHT } from './LetterGlyph';
 import { getGlyph } from '@/lib/glyphs';
 import { useDrawing, strokeToPath, Stroke, Point, PointFilterResult } from '@/hooks/useDrawing';
@@ -13,6 +13,7 @@ interface TraceAreaProps {
   onClear?: () => void;        // Called when clear button is pressed
   onSegmentHit?: (segmentIndex: number) => void; // Called when a segment is hit
   onDrawOutsideCorridor?: () => void; // Called when drawing outside corridor
+  onStrokeEnd?: () => void; // Called when a stroke ends
 }
 
 const LETTER_SPACING = 15; // Space between letters
@@ -35,7 +36,10 @@ export default function TraceArea({
   onClear,
   onSegmentHit,
   onDrawOutsideCorridor,
+  onStrokeEnd,
 }: TraceAreaProps) {
+  const strokeLetterIndexRef = useRef<number | null>(null);
+
   // Get letter path data for hit-testing
   const { letterPaths, isReady, checkPointInLetter, corridorRadius } =
     useLetterPaths({ word, corridorWidth: CORRIDOR_WIDTH });
@@ -47,13 +51,15 @@ export default function TraceArea({
       return { accepted: false };
     }
 
-    // Check if point is in the active letter's corridor (for coverage tracking)
-    if (currentLetterIndex < word.length && currentLetterIndex < letterPaths.length) {
-      const result = checkPointInLetter(point, currentLetterIndex);
+    const activeStrokeIndex = strokeLetterIndexRef.current ?? currentLetterIndex;
+
+    // Check if point is in the active stroke letter's corridor
+    if (activeStrokeIndex < word.length && activeStrokeIndex < letterPaths.length) {
+      const result = checkPointInLetter(point, activeStrokeIndex);
       if (result.inCorridor) {
         return {
           accepted: true,
-          segmentIndex: result.segmentIndex,
+          segmentIndex: activeStrokeIndex === currentLetterIndex ? result.segmentIndex : -1,
         };
       }
     }
@@ -100,6 +106,13 @@ export default function TraceArea({
     throttleMs: 12,
     pointFilter,
     onPointAccepted: handlePointAccepted,
+    onStrokeStart: () => {
+      strokeLetterIndexRef.current = currentLetterIndex;
+    },
+    onStrokeEnd: () => {
+      strokeLetterIndexRef.current = null;
+      onStrokeEnd?.();
+    },
   });
 
   // Calculate layout for all letters

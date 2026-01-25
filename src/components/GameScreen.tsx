@@ -52,6 +52,7 @@ export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
     completedLetters,
     coveragePercentages,
     markSegmentCovered,
+    finalizePendingAdvance,
     resetTracking,
     resetForNewWord,
     isWordComplete,
@@ -116,6 +117,10 @@ export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
   const handleClear = useCallback(() => {
     resetTracking();
   }, [resetTracking]);
+
+  const handleStrokeEnd = useCallback(() => {
+    finalizePendingAdvance();
+  }, [finalizePendingAdvance]);
 
   // Handle "Say it" button
   const handleSayIt = useCallback(() => {
@@ -241,6 +246,7 @@ export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
           onSegmentHit={handleSegmentHit}
           onDrawOutsideCorridor={handleDrawOutsideCorridor}
           onClear={handleClear}
+          onStrokeEnd={handleStrokeEnd}
         />
       </div>
 

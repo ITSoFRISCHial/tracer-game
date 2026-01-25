@@ -22,6 +22,8 @@ interface UseDrawingOptions {
   pointFilter?: (point: Point) => PointFilterResult; // Filter for accepting points
   onPointAccepted?: (point: Point, segmentIndex: number) => void; // Callback when point is accepted
   onPointRejected?: (point: Point) => void; // Callback when point is rejected
+  onStrokeStart?: () => void; // Called when a stroke begins
+  onStrokeEnd?: () => void; // Called when a stroke ends
 }
 
 /**
@@ -40,6 +42,8 @@ export function useDrawing(options: UseDrawingOptions = {}) {
     pointFilter,
     onPointAccepted,
     onPointRejected,
+    onStrokeStart,
+    onStrokeEnd,
   } = options;
 
   const [strokes, setStrokes] = useState<Stroke[]>([]);
@@ -56,11 +60,15 @@ export function useDrawing(options: UseDrawingOptions = {}) {
   const pointFilterRef = useRef(pointFilter);
   const onPointAcceptedRef = useRef(onPointAccepted);
   const onPointRejectedRef = useRef(onPointRejected);
+  const onStrokeStartRef = useRef(onStrokeStart);
+  const onStrokeEndRef = useRef(onStrokeEnd);
 
   // Update refs synchronously (not in useEffect) so changes are immediate
   pointFilterRef.current = pointFilter;
   onPointAcceptedRef.current = onPointAccepted;
   onPointRejectedRef.current = onPointRejected;
+  onStrokeStartRef.current = onStrokeStart;
+  onStrokeEndRef.current = onStrokeEnd;
 
   // Convert pointer event to SVG coordinates
   const getPointFromEvent = useCallback(
@@ -142,6 +150,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
         currentStrokeRef.current = [];
         lastPointTimeRef.current = Date.now();
         setIsDrawing(true);
+        onStrokeStartRef.current?.();
         processPoint(point);
         // Update current stroke state for rendering
         setCurrentStroke({ points: [...currentStrokeRef.current] });
@@ -196,6 +205,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
       currentStrokeRef.current = [];
       setCurrentStroke(null);
       setIsDrawing(false);
+      onStrokeEndRef.current?.();
     },
     [isDrawing]
   );
@@ -223,6 +233,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
         currentStrokeRef.current = [];
         setCurrentStroke(null);
         setIsDrawing(false);
+        onStrokeEndRef.current?.();
       }
     },
     [isDrawing]
@@ -242,6 +253,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
       currentStrokeRef.current = [];
       lastPointTimeRef.current = Date.now();
       setIsDrawing(true);
+      onStrokeStartRef.current?.();
 
       const point = getPointFromTouch(touch, svg);
       if (point) {
@@ -288,6 +300,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
     setIsDrawing(false);
     activeTouchIdRef.current = null;
     usingTouchRef.current = false;
+    onStrokeEndRef.current?.();
   }, []);
 
   const handleTouchEnd = useCallback(

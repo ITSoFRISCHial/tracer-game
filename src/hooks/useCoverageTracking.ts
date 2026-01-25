@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 
 const NUM_SEGMENTS = 120;
-const COMPLETION_THRESHOLD = 0.65; // 65% coverage to complete
+const COMPLETION_THRESHOLD = 0.95; // 95% coverage to complete
 
 interface UseCoverageTrackingOptions {
   wordLength: number;
@@ -16,7 +16,7 @@ interface UseCoverageTrackingOptions {
  *
  * Each letter's path is discretized into NUM_SEGMENTS points.
  * As the user traces, we mark segments as "covered" when they draw near them.
- * When coverage reaches COMPLETION_THRESHOLD (65%), the letter is complete.
+ * When coverage reaches COMPLETION_THRESHOLD (95%), the letter is complete.
  *
  * This is "easy mode" - very forgiving for young children.
  */
@@ -38,6 +38,12 @@ export function useCoverageTracking({
 
   // Current active letter index
   const [currentLetterIndex, setCurrentLetterIndex] = useState(0);
+  const lastSegmentRef = useRef<number>(-1);
+  const pendingAdvanceRef = useRef(false);
+
+  useEffect(() => {
+    lastSegmentRef.current = -1;
+  }, [currentLetterIndex]);
 
   // Calculate coverage percentage for each letter
   const coveragePercentages = useMemo(() => {
@@ -49,11 +55,24 @@ export function useCoverageTracking({
     (segmentIndex: number) => {
       if (currentLetterIndex >= wordLength) return;
       if (completedLetters[currentLetterIndex]) return;
+      if (segmentIndex < 0) return;
 
       setCoveredSegments((prev) => {
         const newSegments = [...prev];
         const letterSegments = new Set(newSegments[currentLetterIndex]);
+
+        const lastSegment = lastSegmentRef.current;
+        if (lastSegment >= 0 && lastSegment !== segmentIndex) {
+          const start = Math.min(lastSegment, segmentIndex);
+          const end = Math.max(lastSegment, segmentIndex);
+          if (end - start <= NUM_SEGMENTS / 3) {
+            for (let i = start; i <= end; i++) {
+              letterSegments.add(i);
+            }
+          }
+        }
         letterSegments.add(segmentIndex);
+        lastSegmentRef.current = segmentIndex;
         newSegments[currentLetterIndex] = letterSegments;
 
         // Check if letter is now complete
@@ -68,14 +87,7 @@ export function useCoverageTracking({
 
           // Notify and advance to next letter
           onLetterComplete?.(currentLetterIndex);
-
-          const nextIndex = currentLetterIndex + 1;
-          if (nextIndex >= wordLength) {
-            // Word is complete!
-            onWordComplete?.();
-          } else {
-            setCurrentLetterIndex(nextIndex);
-          }
+          pendingAdvanceRef.current = true;
         }
 
         return newSegments;
@@ -84,11 +96,26 @@ export function useCoverageTracking({
     [currentLetterIndex, wordLength, completedLetters, onLetterComplete, onWordComplete]
   );
 
+  const finalizePendingAdvance = useCallback(() => {
+    if (!pendingAdvanceRef.current) return;
+
+    pendingAdvanceRef.current = false;
+    const nextIndex = currentLetterIndex + 1;
+    if (nextIndex >= wordLength) {
+      // Word is complete!
+      onWordComplete?.();
+    } else {
+      setCurrentLetterIndex(nextIndex);
+    }
+  }, [currentLetterIndex, wordLength, onWordComplete]);
+
   // Reset everything for a new word
   const resetTracking = useCallback(() => {
     setCoveredSegments(Array.from({ length: wordLength }, () => new Set<number>()));
     setCompletedLetters(Array(wordLength).fill(false));
     setCurrentLetterIndex(0);
+    lastSegmentRef.current = -1;
+    pendingAdvanceRef.current = false;
   }, [wordLength]);
 
   // Reset tracking for word length changes
@@ -97,6 +124,8 @@ export function useCoverageTracking({
       setCoveredSegments(Array.from({ length: newWordLength }, () => new Set<number>()));
       setCompletedLetters(Array(newWordLength).fill(false));
       setCurrentLetterIndex(0);
+      lastSegmentRef.current = -1;
+      pendingAdvanceRef.current = false;
     },
     []
   );
@@ -111,6 +140,7 @@ export function useCoverageTracking({
     completedLetters,
     coveragePercentages,
     markSegmentCovered,
+    finalizePendingAdvance,
     resetTracking,
     resetForNewWord,
     isWordComplete,
