@@ -107,6 +107,9 @@ export function useDrawing(options: UseDrawingOptions = {}) {
 
   const handlePointerDown = useCallback(
     (e: PointerEvent<SVGSVGElement>) => {
+      // Prevent default to stop iOS scroll/zoom behaviors
+      e.preventDefault();
+
       const svg = e.currentTarget;
       svg.setPointerCapture(e.pointerId);
 
@@ -125,6 +128,9 @@ export function useDrawing(options: UseDrawingOptions = {}) {
 
   const handlePointerMove = useCallback(
     (e: PointerEvent<SVGSVGElement>) => {
+      // Always prevent default on move to ensure smooth drawing on iOS
+      e.preventDefault();
+
       if (!isDrawing) return;
 
       // Throttle point sampling
@@ -146,9 +152,15 @@ export function useDrawing(options: UseDrawingOptions = {}) {
 
   const handlePointerUp = useCallback(
     (e: PointerEvent<SVGSVGElement>) => {
+      e.preventDefault();
+
       if (!isDrawing) return;
 
-      e.currentTarget.releasePointerCapture(e.pointerId);
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        // Ignore errors if pointer capture wasn't set
+      }
 
       // Finalize the current stroke - persist to strokes array
       if (currentStrokeRef.current.length > 0) {
@@ -172,6 +184,23 @@ export function useDrawing(options: UseDrawingOptions = {}) {
     [isDrawing, handlePointerUp]
   );
 
+  // Cancel handler to handle interrupted touches on iOS
+  const handlePointerCancel = useCallback(
+    (e: PointerEvent<SVGSVGElement>) => {
+      if (isDrawing) {
+        // Save any progress made
+        if (currentStrokeRef.current.length > 0) {
+          const finalStroke = { points: [...currentStrokeRef.current] };
+          setStrokes((prev) => [...prev, finalStroke]);
+        }
+        currentStrokeRef.current = [];
+        setCurrentStroke(null);
+        setIsDrawing(false);
+      }
+    },
+    [isDrawing]
+  );
+
   const clearStrokes = useCallback(() => {
     setStrokes([]);
     setCurrentStroke(null);
@@ -187,6 +216,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
       onPointerMove: handlePointerMove,
       onPointerUp: handlePointerUp,
       onPointerLeave: handlePointerLeave,
+      onPointerCancel: handlePointerCancel,
     },
     clearStrokes,
   };

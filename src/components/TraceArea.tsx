@@ -137,9 +137,11 @@ export default function TraceArea({
       <div className="flex-1 flex items-center justify-center bg-white rounded-2xl shadow-inner overflow-hidden">
         <svg
           viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
-          className="w-full h-full max-h-full"
+          className="w-full h-full max-h-full touch-none"
           preserveAspectRatio="xMidYMid meet"
-          style={{ touchAction: 'none', cursor: 'crosshair' }}
+          style={{ touchAction: 'none', cursor: 'crosshair', WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
+          onTouchStart={(e) => e.preventDefault()}
+          onTouchMove={(e) => e.preventDefault()}
           {...handlers}
         >
           {/* Background */}
