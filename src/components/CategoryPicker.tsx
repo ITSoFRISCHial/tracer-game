@@ -9,7 +9,7 @@ interface CategoryPickerProps {
 
 export default function CategoryPicker({ onSelect }: CategoryPickerProps) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-6 gap-8">
+    <div className="flex-1 flex flex-col items-center justify-center p-6 gap-8 h-full overflow-auto">
       <h1 className="text-4xl font-bold text-gray-800 text-center">
         Trace the Word!
       </h1>

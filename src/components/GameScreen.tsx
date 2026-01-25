@@ -164,7 +164,7 @@ export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
     : 100;
 
   return (
-    <div className="flex-1 flex flex-col no-select">
+    <div className="flex-1 flex flex-col no-select h-full overflow-hidden">
       {/* Celebration overlay */}
       {showCelebration && (
         <div className="absolute inset-0 flex items-center justify-center bg-green-500/20 z-50 pointer-events-none">
@@ -180,7 +180,7 @@ export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
       )}
 
       {/* Header */}
-      <div className="p-4 flex items-center justify-between bg-white/80 backdrop-blur-sm">
+      <div className="p-4 flex items-center justify-between bg-white/80 backdrop-blur-sm shrink-0">
         <button
           onClick={onBack}
           className="px-4 py-2 text-lg font-semibold text-gray-600 hover:text-gray-800"
@@ -199,7 +199,7 @@ export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
       </div>
 
       {/* Top section: Word display with emoji */}
-      <div className="p-6 flex flex-col items-center justify-center bg-white/50">
+      <div className="p-4 flex flex-col items-center justify-center bg-white/50 shrink-0">
         <div className="text-5xl md:text-6xl font-bold text-gray-800 tracking-wider flex items-center">
           {currentWord.emoji && (
             <span className="mr-4 text-6xl md:text-7xl">{currentWord.emoji}</span>
@@ -245,7 +245,7 @@ export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
       </div>
 
       {/* Bottom section: Trace area */}
-      <div className="flex-1 p-4 pb-8">
+      <div className="flex-1 min-h-0 p-4">
         <TraceArea
           key={traceKey}
           word={currentWord.word}
@@ -260,7 +260,7 @@ export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
       </div>
 
       {/* Action buttons */}
-      <div className="p-4 bg-white/80 flex justify-center gap-4">
+      <div className="p-4 bg-white/80 flex justify-center gap-4 shrink-0">
         <button
           onClick={handleClear}
           className="px-6 py-3 bg-gray-500 text-white rounded-xl font-semibold text-lg hover:bg-gray-600 active:scale-95 transition-all"

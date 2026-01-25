@@ -24,7 +24,7 @@ export default function Home() {
 
   return (
     <SettingsProvider>
-      <main className="min-h-screen min-h-dvh flex flex-col relative safe-area-inset">
+      <main className="h-screen h-dvh flex flex-col relative overflow-hidden safe-area-inset">
         {/* Settings button - always visible, positioned for notched devices */}
         <div className="absolute z-40" style={{ top: 'max(1rem, env(safe-area-inset-top))', right: 'max(1rem, env(safe-area-inset-right))' }}>
           <SettingsButton onOpen={() => setSettingsOpen(true)} />
