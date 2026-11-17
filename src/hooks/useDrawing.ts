@@ -9,6 +9,8 @@ export interface Point {
 
 export interface Stroke {
   points: Point[];
+  /** Which letter was active when the stroke started (used by per-letter undo). */
+  letterIndex?: number;
 }
 
 // Result from point filter
@@ -22,6 +24,7 @@ interface UseDrawingOptions {
   pointFilter?: (point: Point) => PointFilterResult; // Filter for accepting points
   onPointAccepted?: (point: Point, segmentIndex: number) => void; // Callback when point is accepted
   onPointRejected?: (point: Point) => void; // Callback when point is rejected
+  getStrokeLetterIndex?: () => number; // Tags each stroke with the letter being traced
   onStrokeStart?: () => void; // Called when a stroke begins
   onStrokeEnd?: () => void; // Called when a stroke ends
 }
@@ -42,6 +45,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
     pointFilter,
     onPointAccepted,
     onPointRejected,
+    getStrokeLetterIndex,
     onStrokeStart,
     onStrokeEnd,
   } = options;
@@ -51,6 +55,9 @@ export function useDrawing(options: UseDrawingOptions = {}) {
   const [isDrawing, setIsDrawing] = useState(false);
 
   const currentStrokeRef = useRef<Point[]>([]);
+  const strokeLetterIndexRef = useRef<number | undefined>(undefined);
+  const getStrokeLetterIndexRef = useRef(getStrokeLetterIndex);
+  getStrokeLetterIndexRef.current = getStrokeLetterIndex;
   const lastPointTimeRef = useRef<number>(0);
   const activeTouchIdRef = useRef<number | null>(null);
   const usingTouchRef = useRef(false);
@@ -120,12 +127,13 @@ export function useDrawing(options: UseDrawingOptions = {}) {
       const point = getPointFromClient(e.clientX, e.clientY, svg);
       if (point) {
         currentStrokeRef.current = [];
+        strokeLetterIndexRef.current = getStrokeLetterIndexRef.current?.();
         lastPointTimeRef.current = Date.now();
         setIsDrawing(true);
         onStrokeStartRef.current?.();
         processPoint(point);
         // Update current stroke state for rendering
-        setCurrentStroke({ points: [...currentStrokeRef.current] });
+        setCurrentStroke({ points: [...currentStrokeRef.current], letterIndex: strokeLetterIndexRef.current });
       }
     },
     [getPointFromClient, processPoint]
@@ -150,7 +158,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
       if (point) {
         processPoint(point);
         // Update current stroke state for rendering
-        setCurrentStroke({ points: [...currentStrokeRef.current] });
+        setCurrentStroke({ points: [...currentStrokeRef.current], letterIndex: strokeLetterIndexRef.current });
       }
     },
     [isDrawing, throttleMs, getPointFromClient, processPoint]
@@ -171,7 +179,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
 
       // Finalize the current stroke - persist to strokes array
       if (currentStrokeRef.current.length > 0) {
-        const finalStroke = { points: [...currentStrokeRef.current] };
+        const finalStroke = { points: [...currentStrokeRef.current], letterIndex: strokeLetterIndexRef.current };
         setStrokes((prev) => [...prev, finalStroke]);
       }
       currentStrokeRef.current = [];
@@ -199,7 +207,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
       if (isDrawing) {
         // Save any progress made
         if (currentStrokeRef.current.length > 0) {
-          const finalStroke = { points: [...currentStrokeRef.current] };
+          const finalStroke = { points: [...currentStrokeRef.current], letterIndex: strokeLetterIndexRef.current };
           setStrokes((prev) => [...prev, finalStroke]);
         }
         currentStrokeRef.current = [];
@@ -223,6 +231,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
       activeTouchIdRef.current = touch.identifier;
 
       currentStrokeRef.current = [];
+      strokeLetterIndexRef.current = getStrokeLetterIndexRef.current?.();
       lastPointTimeRef.current = Date.now();
       setIsDrawing(true);
       onStrokeStartRef.current?.();
@@ -230,7 +239,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
       const point = getPointFromClient(touch.clientX, touch.clientY, svg);
       if (point) {
         processPoint(point);
-        setCurrentStroke({ points: [...currentStrokeRef.current] });
+        setCurrentStroke({ points: [...currentStrokeRef.current], letterIndex: strokeLetterIndexRef.current });
       }
     },
     [getPointFromClient, processPoint]
@@ -256,7 +265,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
       const point = getPointFromClient(touch.clientX, touch.clientY, e.currentTarget);
       if (point) {
         processPoint(point);
-        setCurrentStroke({ points: [...currentStrokeRef.current] });
+        setCurrentStroke({ points: [...currentStrokeRef.current], letterIndex: strokeLetterIndexRef.current });
       }
     },
     [getPointFromClient, isDrawing, processPoint, throttleMs]
@@ -264,7 +273,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
 
   const finishTouchStroke = useCallback(() => {
     if (currentStrokeRef.current.length > 0) {
-      const finalStroke = { points: [...currentStrokeRef.current] };
+      const finalStroke = { points: [...currentStrokeRef.current], letterIndex: strokeLetterIndexRef.current };
       setStrokes((prev) => [...prev, finalStroke]);
     }
     currentStrokeRef.current = [];
@@ -310,6 +319,11 @@ export function useDrawing(options: UseDrawingOptions = {}) {
     usingTouchRef.current = false;
   }, []);
 
+  /** Remove every stroke that was drawn while `letterIndex` was the active letter. */
+  const clearStrokesForLetter = useCallback((letterIndex: number) => {
+    setStrokes((prev) => prev.filter((stroke) => stroke.letterIndex !== letterIndex));
+  }, []);
+
   return {
     strokes,
     isDrawing,
@@ -326,6 +340,7 @@ export function useDrawing(options: UseDrawingOptions = {}) {
       onTouchCancel: handleTouchCancel,
     },
     clearStrokes,
+    clearStrokesForLetter,
   };
 }
 

@@ -6,6 +6,7 @@ export interface GameSettings {
   corridorWidth: number;       // 30-60, default 42
   completionThreshold: number; // 0.5-1.0, default 0.95
   speechEnabled: boolean;      // default true
+  showCorridor: boolean;       // default false; draws the hit-test zone (grown-up debug aid)
 }
 
 export interface PersistedScores {
@@ -18,6 +19,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   corridorWidth: 42,
   completionThreshold: 0.95,
   speechEnabled: true,
+  showCorridor: false,
 };
 
 const DEFAULT_SCORES: PersistedScores = {

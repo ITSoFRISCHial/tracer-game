@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 interface EmojiExplosionProps {
   emoji?: string;
@@ -30,6 +30,10 @@ interface Particle {
  * Creates particles that burst from center and fly outward with physics-like motion.
  * Uses CSS animations for performance - no JS animation loop needed.
  * Each particle has randomized trajectory, rotation, scale, and timing.
+ * Randomness is generated once in lazy useState initializers (not during every
+ * render), which keeps render pure. prefers-reduced-motion is handled globally
+ * in globals.css (animations collapse to their end state, so particles vanish
+ * and only the central emoji remains for the duration).
  */
 export default function EmojiExplosion({
   emoji,
@@ -39,10 +43,13 @@ export default function EmojiExplosion({
   const [isVisible, setIsVisible] = useState(true);
 
   // Pick random emoji if none provided
-  const displayEmoji = emoji || CELEBRATION_EMOJIS[Math.floor(Math.random() * CELEBRATION_EMOJIS.length)];
+  const [fallbackEmoji] = useState(
+    () => CELEBRATION_EMOJIS[Math.floor(Math.random() * CELEBRATION_EMOJIS.length)]
+  );
+  const displayEmoji = emoji || fallbackEmoji;
 
   // Generate particles on mount
-  const particles = useMemo(() => {
+  const [particles] = useState<Particle[]>(() => {
     const count = 40; // Number of emojis to explode
     const result: Particle[] = [];
 
@@ -67,17 +74,23 @@ export default function EmojiExplosion({
     }
 
     return result;
-  }, [displayEmoji]);
+  });
 
   // Trigger completion callback and hide after duration
+  // Bug fix: onComplete is kept in a ref. Parents pass an inline callback, so
+  // listing it in the deps restarted the timer on every parent re-render.
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  });
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsVisible(false);
-      onComplete?.();
+      onCompleteRef.current?.();
     }, duration);
 
     return () => clearTimeout(timer);
-  }, [duration, onComplete]);
+  }, [duration]);
 
   if (!isVisible) return null;
 

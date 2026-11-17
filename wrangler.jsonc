@@ -1,0 +1,12 @@
+{
+  // Worker name must match the Workers Builds project in Cloudflare.
+  "name": "tracer-game",
+  "compatibility_date": "2026-11-01",
+  // Static assets only: `next build` writes the exported site to ./out.
+  "assets": {
+    "directory": "./out",
+    "not_found_handling": "single-page-application"
+  },
+  // Required by `wrangler preview` (Workers Builds PR previews). Empty = inherit top-level settings.
+  "previews": {}
+}
