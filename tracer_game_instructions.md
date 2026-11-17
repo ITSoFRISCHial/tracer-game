@@ -2,7 +2,7 @@ You are Claude Code. Build a web app game for 5-year-olds: “Trace the Word”.
 
 Tech + deploy
 - Next.js (App Router) + TypeScript.
-- Deploy: Vercel.
+- Deploy: Cloudflare Workers (static export; originally Vercel). See docs/DEPLOYMENT.md.
 - iPad Safari optimized (finger + Apple Pencil).
 - Use Pointer Events. Disable page scroll/zoom gestures while drawing inside the trace area.
 
