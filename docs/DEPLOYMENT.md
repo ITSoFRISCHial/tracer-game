@@ -31,3 +31,10 @@ to an adapter (vinext or OpenNext) – update `next.config.ts` and this file.
 ## Migration notes
 
 Vercel → Cloudflare. Details of the actual cutover (IDs, DNS) are recorded below.
+
+### Cutover log (2026-11-17)
+
+- Worker `tracer-game` (tag `39a790ca7087456ea00f7e6b2934e48f`) created; Workers Builds connected to `ITSoFRISCHial/tracer-game`, branch `main`.
+- PR #1 merged as `11838ef`; native production build succeeded.
+- `tracer.jeremyfrisch.org`: Vercel CNAME (`17a3d1d2f00df96c.vercel-dns-017.com`) replaced by a Cloudflare Worker Custom Domain.
+- **Still to do by hand:** remove the Vercel project/Git integration (`tracer-game` on Vercel) so it stops building PRs. Vercel access was not available from this session.
