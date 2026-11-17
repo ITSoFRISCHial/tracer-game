@@ -6,5 +6,7 @@
   "assets": {
     "directory": "./out",
     "not_found_handling": "single-page-application"
-  }
+  },
+  // Required by `wrangler preview` (Workers Builds PR previews). Empty = inherit top-level settings.
+  "previews": {}
 }
