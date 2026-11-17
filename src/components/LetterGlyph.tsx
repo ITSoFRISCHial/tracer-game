@@ -14,7 +14,8 @@ interface LetterGlyphProps {
  * Renders a single letter glyph as an SVG group.
  * - Dotted outline when incomplete
  * - Solid black when complete
- * - Slightly highlighted when active
+ * - Slightly highlighted when active (warm yellow halo behind the dotted path)
+ * Colors match the design tokens in globals.css (ink-soft / ink / btn-undo yellow).
  */
 export default function LetterGlyph({
   letter,
@@ -30,7 +31,7 @@ export default function LetterGlyph({
   }
 
   // Determine stroke style based on state
-  const strokeColor = isComplete ? '#000000' : '#666666';
+  const strokeColor = isComplete ? '#23305a' : '#4b5782';
   const strokeWidth = isComplete ? 6 : 4;
   const strokeDasharray = isComplete ? 'none' : '8 6';
   const opacity = isActive || isComplete ? 1 : 0.5;
@@ -56,11 +57,11 @@ export default function LetterGlyph({
         <path
           d={glyph.path}
           fill="none"
-          stroke="#4CAF50"
+          stroke="#ffc53d"
           strokeWidth={strokeWidth + 8}
           strokeLinecap="round"
           strokeLinejoin="round"
-          opacity={0.2}
+          opacity={0.55}
         />
       )}
     </g>

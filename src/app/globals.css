@@ -1,14 +1,154 @@
 @import "tailwindcss";
 
-:root {
+/*
+ * Dev Notes: Design tokens (see docs/DESIGN.md)
+ *
+ * Tokens are declared in @theme so Tailwind generates utilities from them
+ * (bg-paper, text-ink, bg-btn-check ...) and they are also plain CSS variables.
+ * Contrast (checked against WCAG AA 4.5:1 for text):
+ *   ink #23305A on paper #FFF6E5 = 12:1, ink-soft #4B5782 on paper = 6.6:1,
+ *   white on btn-say #C93C4A / btn-check #178246 / btn-start #2B6CDF >= 4.6:1,
+ *   ink on btn-undo #FFC53D = 8:1.
+ */
+@theme {
   --font-sans: var(--font-open-sans), system-ui, sans-serif;
+
+  --color-paper: #fff6e5;
+  --color-paper-deep: #ffe9bd;
+  --color-card: #ffffff;
+  --color-ink: #23305a;
+  --color-ink-soft: #4b5782;
+  --color-line: #e7d9bb;
+
+  --color-btn-say: #c93c4a;
+  --color-btn-say-lip: #8f2430;
+  --color-btn-undo: #ffc53d;
+  --color-btn-undo-lip: #c48a0a;
+  --color-btn-start: #2b6cdf;
+  --color-btn-start-lip: #1b4799;
+  --color-btn-check: #178246;
+  --color-btn-check-lip: #0e5a2f;
+  --color-btn-quiet: #ffffff;
+  --color-btn-quiet-lip: #d9c79c;
+
+  --color-star: #f5a700;
+  --color-ink-trace: #2b6cdf;
 }
 
 body {
   font-family: var(--font-sans);
-  background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
+  color: var(--color-ink);
+  /* Warm paper with a faint dot grid, like a school worksheet. */
+  background-color: var(--color-paper);
+  background-image: radial-gradient(var(--color-line) 1.5px, transparent 1.5px);
+  background-size: 28px 28px;
   min-height: 100vh;
   min-height: 100dvh;
+}
+
+/*
+ * Full visible height. On iPad Safari 100vh includes the area behind the browser
+ * toolbar, which pushed the bottom buttons off-screen. 100dvh tracks the visible
+ * viewport; the 100vh line is only a fallback for browsers without dvh support.
+ */
+.app-height {
+  height: 100vh;
+  height: 100dvh;
+}
+
+/*
+ * Chunky button. Colors come from --btn / --btn-lip / --btn-fg set by the
+ * variant classes below. The "lip" is a solid box-shadow that makes the button
+ * look raised; on press the button sinks by the lip height.
+ * min-height 56px is the minimum touch target; the icon sits above the label
+ * (.btn-stack) and moves beside it on short screens so the bar stays slim.
+ */
+.btn {
+  --lip: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  min-height: 56px;
+  min-width: 56px;
+  padding: 0.4rem 1.1rem;
+  border: 0;
+  border-radius: 1.25rem;
+  background: var(--btn);
+  color: var(--btn-fg, #fff);
+  font-weight: 800;
+  font-size: 1.15rem;
+  line-height: 1.1;
+  cursor: pointer;
+  box-shadow: 0 var(--lip) 0 var(--btn-lip);
+  transform: translateY(0);
+  transition: transform 90ms ease-out, box-shadow 90ms ease-out, opacity 150ms;
+}
+.btn:active:not(:disabled) {
+  transform: translateY(var(--lip));
+  box-shadow: 0 0 0 var(--btn-lip);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: saturate(0.5);
+}
+.btn:focus-visible,
+.chip:focus-visible,
+.card-btn:focus-visible {
+  outline: 4px solid var(--color-ink);
+  outline-offset: 3px;
+}
+.btn-stack { flex-direction: column; }
+.btn-icon { font-size: 1.9rem; line-height: 1; }
+.btn-say   { --btn: var(--color-btn-say);   --btn-lip: var(--color-btn-say-lip); }
+.btn-undo  { --btn: var(--color-btn-undo);  --btn-lip: var(--color-btn-undo-lip); --btn-fg: var(--color-ink); }
+.btn-start { --btn: var(--color-btn-start); --btn-lip: var(--color-btn-start-lip); }
+.btn-check { --btn: var(--color-btn-check); --btn-lip: var(--color-btn-check-lip); }
+.btn-quiet { --btn: var(--color-btn-quiet); --btn-lip: var(--color-btn-quiet-lip); --btn-fg: var(--color-ink); border: 2px solid var(--color-btn-quiet-lip); }
+
+/* Short visible viewport (iPad Safari with toolbars): put icon beside label. */
+@media (max-height: 720px) {
+  .btn-stack { flex-direction: row; gap: 0.5rem; }
+  .btn-icon { font-size: 1.6rem; }
+}
+
+/* Raised white cards (category picker, trace area). */
+.card-btn {
+  background: var(--color-card);
+  border: 3px solid var(--color-line);
+  border-radius: 1.75rem;
+  box-shadow: 0 6px 0 var(--color-btn-quiet-lip);
+  transition: transform 90ms ease-out, box-shadow 90ms ease-out;
+}
+.card-btn:active {
+  transform: translateY(6px);
+  box-shadow: 0 0 0 var(--color-btn-quiet-lip);
+}
+
+/* Small rounded info pill (score, counters). */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.8rem;
+  border-radius: 999px;
+  background: var(--color-card);
+  border: 2px solid var(--color-line);
+  font-weight: 800;
+  font-size: 1.25rem;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Respect the OS "reduce motion" setting: no bounces, pulses or particle flights. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Prevent text selection during tracing */

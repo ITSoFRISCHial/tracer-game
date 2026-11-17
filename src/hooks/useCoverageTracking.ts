@@ -120,6 +120,19 @@ export function useCoverageTracking({
     }
   }, [currentLetterIndex, wordLength, onWordComplete]);
 
+  // Undo: forget progress on the letter currently being traced (completed letters are untouched)
+  const resetCurrentLetter = useCallback(() => {
+    if (currentLetterIndex >= wordLength) return;
+    setCoveredSegments((prev) => {
+      const next = [...prev];
+      next[currentLetterIndex] = new Set<number>();
+      return next;
+    });
+    lastSegmentRef.current = -1;
+    pendingAdvanceRef.current = false;
+    pendingLetterIndexRef.current = null;
+  }, [currentLetterIndex, wordLength]);
+
   // Reset everything for a new word
   const resetTracking = useCallback(() => {
     setCoveredSegments(Array.from({ length: wordLength }, () => new Set<number>()));
@@ -155,6 +168,7 @@ export function useCoverageTracking({
     markSegmentCovered,
     finalizePendingAdvance,
     resetTracking,
+    resetCurrentLetter,
     resetForNewWord,
     isWordComplete,
     completionThreshold,

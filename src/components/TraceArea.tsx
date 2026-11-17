@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useCallback, useRef } from 'react';
+import { useMemo, useCallback, useRef, useEffect, useImperativeHandle, Ref } from 'react';
 import LetterGlyph, { GLYPH_HEIGHT } from './LetterGlyph';
 import { getGlyph } from '@/lib/glyphs';
 import { useDrawing, strokeToPath, Stroke, Point, PointFilterResult } from '@/hooks/useDrawing';
@@ -11,10 +11,18 @@ interface TraceAreaProps {
   currentLetterIndex: number;  // Which letter is active (0-indexed)
   completedLetters: boolean[]; // Array of completion status for each letter
   corridorWidth?: number;      // Width of the hit-testing corridor (default 42)
-  onClear?: () => void;        // Called when clear button is pressed
+  showCorridor?: boolean;      // Draw the faint corridor circles (debug aid; default false)
+  ref?: Ref<TraceAreaHandle>;   // Lets the parent trigger undo
+  onInkChange?: (hasInkForCurrentLetter: boolean) => void; // Tells the parent whether undo has anything to erase
   onSegmentHit?: (segmentIndex: number) => void; // Called when a segment is hit
   onDrawOutsideCorridor?: () => void; // Called when drawing outside corridor
   onStrokeEnd?: () => void; // Called when a stroke ends
+}
+
+/** Imperative actions the parent (GameScreen) can trigger from its buttons. */
+export interface TraceAreaHandle {
+  /** Erase the ink drawn on the letter currently being traced. Completed letters keep their ink. */
+  undoCurrentLetter: () => void;
 }
 
 const LETTER_SPACING = 15; // Space between letters
@@ -29,13 +37,24 @@ const DEFAULT_CORRIDOR_WIDTH = 42; // Default width of the hit-testing corridor
  * - The corridor is defined by a radius around the letter's path
  * - onSegmentHit callback is called for each segment touched (for coverage tracking)
  * - onDrawOutsideCorridor is called when user draws outside (for voice feedback)
+ *
+ * Layout: the component fills its parent (w-full h-full). The SVG uses a
+ * viewBox + preserveAspectRatio="xMidYMid meet", so the word scales to the
+ * largest size that fits the box without ever overflowing; the parent decides
+ * the box (flex-1 min-h-0 in GameScreen). Pointer coordinates are mapped back
+ * through the SVG screen CTM in useDrawing, so scaling does not offset the ink.
+ *
+ * Undo: `ref.undoCurrentLetter()` removes strokes tagged with the active letter
+ * index; `onInkChange` reports whether such ink exists (drives Undo's disabled state).
  */
 export default function TraceArea({
   word,
   currentLetterIndex,
   completedLetters,
   corridorWidth = DEFAULT_CORRIDOR_WIDTH,
-  onClear,
+  showCorridor = false,
+  ref,
+  onInkChange,
   onSegmentHit,
   onDrawOutsideCorridor,
   onStrokeEnd,
@@ -104,9 +123,10 @@ export default function TraceArea({
   );
 
   // Drawing state and handlers with hit-testing
-  const { strokes, currentStroke, handlers, clearStrokes } = useDrawing({
+  const { strokes, currentStroke, handlers, clearStrokesForLetter } = useDrawing({
     throttleMs: 12,
     pointFilter,
+    getStrokeLetterIndex: () => currentLetterIndex,
     onPointAccepted: handlePointAccepted,
     onStrokeStart: () => {
       strokeLetterIndexRef.current = currentLetterIndex;
@@ -116,6 +136,20 @@ export default function TraceArea({
       onStrokeEnd?.();
     },
   });
+
+  // Undo support: expose an imperative handle and report whether there is ink to erase
+  useImperativeHandle(
+    ref,
+    () => ({ undoCurrentLetter: () => clearStrokesForLetter(currentLetterIndex) }),
+    [clearStrokesForLetter, currentLetterIndex]
+  );
+
+  const hasInkForCurrentLetter =
+    strokes.some((stroke) => stroke.letterIndex === currentLetterIndex) ||
+    currentStroke !== null;
+  useEffect(() => {
+    onInkChange?.(hasInkForCurrentLetter);
+  }, [hasInkForCurrentLetter, onInkChange]);
 
   // Calculate layout for all letters
   const layout = useMemo(() => {
@@ -149,7 +183,7 @@ export default function TraceArea({
 
   return (
     <div className="w-full h-full flex flex-col">
-      <div className="flex-1 flex items-center justify-center bg-white rounded-2xl shadow-inner overflow-hidden">
+      <div className="flex-1 flex items-center justify-center bg-[#fffdf8] rounded-[2rem] border-4 border-line shadow-[0_6px_0_var(--color-btn-quiet-lip)] overflow-hidden">
         <svg
           viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
           className="w-full h-full max-h-full touch-none"
@@ -163,7 +197,7 @@ export default function TraceArea({
             y="0"
             width={viewBoxWidth}
             height={viewBoxHeight}
-            fill="#fafafa"
+            fill="#fffdf8"
             rx="10"
           />
 
@@ -173,13 +207,14 @@ export default function TraceArea({
             y1={PADDING + 120}
             x2={viewBoxWidth - PADDING}
             y2={PADDING + 120}
-            stroke="#e0e0e0"
+            stroke="#d9c79c"
             strokeWidth="2"
             strokeDasharray="5 5"
           />
 
-          {/* Debug: Show corridor for active letter */}
-          {isReady && letterPaths[currentLetterIndex] && (
+          {/* Debug: corridor for the active letter. Hidden unless the
+              "Show tracing zone" setting is on. */}
+          {showCorridor && isReady && letterPaths[currentLetterIndex] && (
             <g opacity={0.1}>
               {letterPaths[currentLetterIndex].points.map((pt, i) => (
                 <circle
@@ -213,8 +248,8 @@ export default function TraceArea({
                 key={index}
                 d={strokeToPath(stroke)}
                 fill="none"
-                stroke="#2196F3"
-                strokeWidth="8"
+                stroke="#2b6cdf"
+                strokeWidth="9"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 opacity={0.8}
@@ -223,19 +258,6 @@ export default function TraceArea({
           </g>
         </svg>
       </div>
-
-      {/* Clear button */}
-      {strokes.length > 0 && (
-        <button
-          onClick={() => {
-            clearStrokes();
-            onClear?.();
-          }}
-          className="mt-2 px-4 py-2 text-sm text-gray-500 hover:text-gray-700 underline"
-        >
-          Clear Drawing
-        </button>
-      )}
     </div>
   );
 }

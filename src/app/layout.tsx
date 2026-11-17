@@ -5,7 +5,7 @@ import './globals.css';
 const openSans = Open_Sans({
   variable: '--font-open-sans',
   subsets: ['latin'],
-  weight: ['400', '600', '700'],
+  weight: ['400', '600', '700', '800'] // 800 = chunky button labels and headings,
 });
 
 export const metadata: Metadata = {
@@ -32,6 +32,12 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
+/**
+ * Root layout. Loads Open Sans and sets iOS web-app meta tags. The viewport is
+ * locked (no pinch zoom) on purpose: this is a drawing game and a stray pinch
+ * would shift the canvas. `viewportFit: cover` lets the app use the full screen;
+ * page.tsx adds safe-area padding.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{

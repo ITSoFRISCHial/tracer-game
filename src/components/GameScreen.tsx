@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useState, useEffect, useRef } from 'react';
+import { useCallback, useState, useEffect, useRef, ReactNode } from 'react';
 import { CategoryId, Score } from '@/types';
 import { categories } from '@/data/categories';
-import TraceArea from './TraceArea';
+import TraceArea, { TraceAreaHandle } from './TraceArea';
 import EmojiExplosion from './EmojiExplosion';
 import { useCoverageTracking } from '@/hooks/useCoverageTracking';
 import { useWordQueue } from '@/hooks/useWordQueue';
@@ -13,9 +13,26 @@ import { useSettings } from '@/hooks/useSettings';
 interface GameScreenProps {
   categoryId: CategoryId;
   onBack: () => void;
+  /** The hold-to-open Settings button; rendered inside the header so it never overlaps it. */
+  settingsSlot?: ReactNode;
 }
 
-export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
+/**
+ * Dev Notes: Game screen layout (see docs/DESIGN.md)
+ *
+ * A flex column that fills the visible viewport (parent is `.app-height`):
+ *   1. Header      (shrink-0)  Back | category | score stars | Settings
+ *   2. Word row    (shrink-0)  emoji + WORD + "Say it", letter progress pills
+ *   3. Trace area  (flex-1 min-h-0)  absorbs ALL leftover height, never overflows
+ *   4. Action bar  (shrink-0)  Undo | Start Over | Check
+ * Only the trace area flexes, so on any iPad size (including a shortened Safari
+ * viewport) the header and action bar are always on screen. Every button pairs
+ * an emoji icon with a short text label for early readers.
+ *
+ * Game flow: useWordQueue picks the word; useCoverageTracking owns letter
+ * progress; TraceArea owns ink. Remounting TraceArea (traceKey) clears ink.
+ */
+export default function GameScreen({ categoryId, onBack, settingsSlot }: GameScreenProps) {
   const category = categories[categoryId];
 
   // Settings from context
@@ -59,6 +76,7 @@ export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
     markSegmentCovered,
     finalizePendingAdvance,
     resetTracking,
+    resetCurrentLetter,
     resetForNewWord,
     isWordComplete,
   } = useCoverageTracking({
@@ -117,9 +135,20 @@ export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
     }
   }, [currentLetterIndex, speakLockedLetter]);
 
-  // Handle clear - also reset coverage
-  const handleClear = useCallback(() => {
+  // Undo: erase the ink on the letter being traced and forget its progress.
+  // Letters that are already finished keep their ink and stay solid.
+  const traceAreaRef = useRef<TraceAreaHandle>(null);
+  const [canUndo, setCanUndo] = useState(false);
+  const handleUndo = useCallback(() => {
+    traceAreaRef.current?.undoCurrentLetter();
+    resetCurrentLetter();
+  }, [resetCurrentLetter]);
+
+  // Start over: erase all ink and go back to the first letter.
+  // Remounting TraceArea (new key) is what clears its ink.
+  const handleStartOver = useCallback(() => {
     resetTracking();
+    setTraceKey((k) => k + 1);
   }, [resetTracking]);
 
   const handleStrokeEnd = useCallback(() => {
@@ -151,7 +180,11 @@ export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
   }, [currentWord, isWordComplete, currentLetterIndex, speakCelebration, speakIncomplete]);
 
   if (!currentWord) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex-1 flex items-center justify-center text-3xl font-extrabold text-ink-soft">
+        Getting your word ready...
+      </div>
+    );
   }
 
   // Current coverage percentage for display
@@ -160,7 +193,7 @@ export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
     : 100;
 
   return (
-    <div className="flex-1 flex flex-col no-select h-full overflow-hidden">
+    <div className="flex-1 min-h-0 flex flex-col no-select overflow-hidden">
       {/* Celebration overlay */}
       {showCelebration && (
         <EmojiExplosion
@@ -178,99 +211,139 @@ export default function GameScreen({ categoryId, onBack }: GameScreenProps) {
         <div className="absolute inset-0 bg-red-500/30 z-40 pointer-events-none animate-pulse" />
       )}
 
-      {/* Header */}
-      <div className="p-4 flex items-center justify-between bg-white/80 backdrop-blur-sm shrink-0">
-        <button
-          onClick={onBack}
-          className="px-4 py-2 text-lg font-semibold text-gray-600 hover:text-gray-800"
-        >
-          ← Back
+      {/* Header: Back | category | stars | Settings. Settings lives here (not
+          absolutely positioned) so it can never overlap the score. */}
+      <header className="shrink-0 px-4 pt-2 pb-1 flex items-center justify-between gap-3">
+        <button onClick={onBack} className="btn btn-quiet btn-stack" aria-label="Back to the game list">
+          <span className="btn-icon" aria-hidden>⬅️</span>
+          <span>Back</span>
         </button>
-        <div className="text-center">
-          <span className="text-2xl">{category.emoji}</span>
-          <span className="ml-2 text-lg font-semibold text-gray-700">
-            {category.displayName}
-          </span>
-        </div>
-        <div className="w-20 text-right text-sm text-gray-500">
-          #{wordsCompleted + 1}
-        </div>
-      </div>
 
-      {/* Top section: Word display with emoji */}
-      <div className="p-4 flex flex-col items-center justify-center bg-white/50 shrink-0">
-        <div className="text-5xl md:text-6xl font-bold text-gray-800 tracking-wider flex items-center">
+        <div className="chip" aria-label={`Category: ${category.displayName}`}>
+          <span className="text-2xl" aria-hidden>{category.emoji}</span>
+          <span>{category.displayName}</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Stars = letters finished, trophy = words finished this session */}
+          <div className="chip" role="img" aria-label={`${score.letterPoints} letter stars`}>
+            <span aria-hidden>⭐</span>
+            <span aria-hidden>{score.letterPoints}</span>
+          </div>
+          <div className="chip" role="img" aria-label={`${score.wordPoints} word trophies`}>
+            <span aria-hidden>🏆</span>
+            <span aria-hidden>{score.wordPoints}</span>
+          </div>
+          {settingsSlot}
+        </div>
+      </header>
+
+      {/* Word row: picture + word + "Say it" */}
+      <section className="shrink-0 px-4 flex flex-col items-center">
+        <div className="flex items-center gap-4">
           {currentWord.emoji && (
-            <span className="mr-4 text-6xl md:text-7xl">{currentWord.emoji}</span>
+            <span className="leading-none" style={{ fontSize: 'clamp(2.75rem, 8vh, 4.5rem)' }} aria-hidden>
+              {currentWord.emoji}
+            </span>
           )}
-          {currentWord.word}
-          <button
-            onClick={handleSayIt}
-            className="ml-4 text-4xl hover:scale-110 active:scale-95 transition-transform"
-            aria-label="Say the word"
+          <span
+            className="font-extrabold tracking-[0.12em] text-ink leading-none"
+            style={{ fontSize: 'clamp(2.5rem, 8vh, 4.25rem)' }}
           >
-            🔊
+            {currentWord.word}
+          </span>
+          <button onClick={handleSayIt} className="btn btn-say btn-stack" aria-label="Say the word">
+            <span className="btn-icon" aria-hidden>🔊</span>
+            <span>Say it</span>
           </button>
         </div>
 
-        {/* Coverage progress */}
-        <div className="mt-4 flex flex-col items-center gap-2">
-          {!isWordComplete && (
-            <div className="flex items-center gap-3">
-              <span className="text-lg text-gray-600">
-                Tracing: <strong>{currentWord.word[currentLetterIndex]}</strong>
-              </span>
-              <div className="w-32 h-3 bg-gray-200 rounded-full overflow-hidden">
+        {/* Progress: one pill per letter. Done = green, current = fills as you
+            trace, upcoming = empty. Replaces the old "Tracing: X 45%" text. */}
+        <div
+          className="mt-1 flex items-center justify-center gap-2 h-7"
+          role="img"
+          aria-label={
+            isWordComplete
+              ? 'Great job! Word finished'
+              : `Letter ${currentLetterIndex + 1} of ${currentWord.word.length}, ${currentCoverage} percent traced`
+          }
+        >
+          {isWordComplete ? (
+            <div className="text-xl font-extrabold text-btn-check animate-pulse">
+              <span aria-hidden>🎉</span> Great job!
+            </div>
+          ) : (
+            currentWord.word.split('').map((letter, i) => {
+              const done = completedLetters[i];
+              const active = i === currentLetterIndex;
+              const fill = done ? 100 : active ? currentCoverage : 0;
+              return (
                 <div
-                  className="h-full bg-green-500 transition-all duration-100"
-                  style={{ width: `${currentCoverage}%` }}
-                />
-              </div>
-              <span className="text-sm text-gray-500">{currentCoverage}%</span>
-            </div>
-          )}
-          {isWordComplete && (
-            <div className="text-2xl text-green-600 font-bold animate-pulse">
-              Great job!
-            </div>
+                  key={i}
+                  className={`relative w-14 h-6 rounded-full overflow-hidden bg-white border-2 ${
+                    active ? 'border-ink' : 'border-line'
+                  }`}
+                >
+                  <div
+                    className="absolute inset-y-0 left-0 bg-[#3fbf72] transition-[width] duration-100"
+                    style={{ width: `${fill}%` }}
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center text-xs font-extrabold text-ink" aria-hidden>
+                    {done ? '✓' : letter}
+                  </span>
+                </div>
+              );
+            })
           )}
         </div>
+      </section>
 
-        {/* Score display */}
-        <div className="mt-4 flex gap-8 text-lg text-gray-600">
-          <span>Letter Points: <strong>{score.letterPoints}</strong></span>
-          <span>Word Points: <strong>{score.wordPoints}</strong></span>
-        </div>
-      </div>
-
-      {/* Bottom section: Trace area */}
-      <div className="flex-1 min-h-0 p-4">
+      {/* Trace area: the only flexible block. min-h-0 lets it shrink below its content height. */}
+      <div className="flex-1 min-h-0 px-4 py-2">
         <TraceArea
           key={traceKey}
           word={currentWord.word}
           currentLetterIndex={currentLetterIndex}
           completedLetters={completedLetters}
           corridorWidth={settings.corridorWidth}
+          showCorridor={settings.showCorridor}
           onSegmentHit={handleSegmentHit}
           onDrawOutsideCorridor={handleDrawOutsideCorridor}
-          onClear={handleClear}
+          ref={traceAreaRef}
+          onInkChange={setCanUndo}
           onStrokeEnd={handleStrokeEnd}
         />
       </div>
 
-      {/* Action buttons */}
-      <div className="p-4 bg-white/80 flex justify-center gap-4 shrink-0">
+      {/* Action bar: every button pairs an icon with a short label so
+          non-readers can tell them apart. Padding at the bottom leaves room for
+          the lip shadow of the chunky buttons. */}
+      <div className="shrink-0 px-4 pt-1 pb-3 flex justify-center gap-4">
         <button
-          onClick={handleClear}
-          className="px-6 py-3 bg-gray-500 text-white rounded-xl font-semibold text-lg hover:bg-gray-600 active:scale-95 transition-all"
+          onClick={handleUndo}
+          disabled={!canUndo}
+          aria-label="Undo: erase this letter and try it again"
+          className="btn btn-undo btn-stack min-w-28"
         >
-          Start Over
+          <span className="btn-icon" aria-hidden>↩️</span>
+          <span>Undo</span>
+        </button>
+        <button
+          onClick={handleStartOver}
+          aria-label="Start over: erase everything and begin the word again"
+          className="btn btn-start btn-stack min-w-28"
+        >
+          <span className="btn-icon" aria-hidden>🔄</span>
+          <span>Start Over</span>
         </button>
         <button
           onClick={handleCheck}
-          className="px-6 py-3 bg-green-500 text-white rounded-xl font-semibold text-lg hover:bg-green-600 active:scale-95 transition-all flex items-center gap-2"
+          aria-label="Check my word"
+          className="btn btn-check btn-stack min-w-28"
         >
-          <span>✅</span> Check
+          <span className="btn-icon" aria-hidden>✅</span>
+          <span>Check</span>
         </button>
       </div>
     </div>
